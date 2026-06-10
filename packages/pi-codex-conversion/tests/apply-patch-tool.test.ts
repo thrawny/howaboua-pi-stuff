@@ -135,6 +135,27 @@ test("apply_patch renderCall shows partial failure inline after some hunks alrea
 	}
 });
 
+test("apply_patch can show diff when global tool expansion is collapsed", () => {
+	const { pi, getTool } = createRegisteredTool();
+	registerApplyPatchTool(pi, { showDiffWhenCollapsed: true });
+	const theme = createTheme();
+	const patch = `*** Begin Patch
+*** Add File: created.txt
++hello
+*** End Patch`;
+
+	try {
+		const rendered = renderComponentText(
+			getTool().renderCall?.({ input: patch }, theme, { toolCallId: "call-show-diff", expanded: false }),
+		);
+
+		assert.match(rendered, /^• Added created\.txt \(\+1 -0\)/);
+		assert.match(rendered, /1 \+hello/);
+	} finally {
+		clearApplyPatchRenderState();
+	}
+});
+
 test("apply_patch move succeeds through the Rust shim", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "pi-codex-conversion-"));
 	const sourcePath = join(cwd, "source.txt");

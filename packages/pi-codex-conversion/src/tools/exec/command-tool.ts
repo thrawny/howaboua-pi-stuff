@@ -77,14 +77,6 @@ function parseExecCommandParams(params: unknown): ExecCommandParams {
 	};
 }
 
-function isUnifiedExecResult(details: unknown): details is UnifiedExecResult {
-	return typeof details === "object" && details !== null;
-}
-
-function createEmptyResultComponent(): Container {
-	return new Container();
-}
-
 async function resolveCodexBackedPathToolEnv(command: string, ctx: ExtensionContext): Promise<NodeJS.ProcessEnv | undefined> {
 	const toolNames = getCodexBackedPathToolNames(command);
 	if (toolNames.length === 0) return undefined;
@@ -103,9 +95,53 @@ async function resolveCodexBackedPathToolEnv(command: string, ctx: ExtensionCont
 	}
 }
 
+function isUnifiedExecResult(details: unknown): details is UnifiedExecResult {
+	return typeof details === "object" && details !== null;
+}
+
+function createEmptyResultComponent(): Container {
+	return new Container();
+}
+
 interface ExecCommandRenderContextLike {
 	toolCallId?: string | undefined;
 	invalidate?: () => void | undefined;
+}
+
+interface ExecCommandToolOptions {
+	customRendering?: boolean | undefined;
+	promptSnippet?: boolean | undefined;
+	showOutputWhenCollapsed?: boolean | undefined;
+}
+
+const COLLAPSED_OUTPUT_MAX_LINES = 4;
+const COLLAPSED_OUTPUT_MAX_LINE_LENGTH = 180;
+
+function shortenOutputLine(line: string, maxLength = COLLAPSED_OUTPUT_MAX_LINE_LENGTH): string {
+	return line.length <= maxLength ? line : `${line.slice(0, maxLength - 3)}...`;
+}
+
+function pluralize(count: number, singular: string): string {
+	return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+function formatDuration(seconds: number): string {
+	return `${seconds.toFixed(1)}s`;
+}
+
+export function formatCollapsedExecOutputPreview(result: UnifiedExecResult, maxLines = COLLAPSED_OUTPUT_MAX_LINES): string {
+	const lines: string[] = [];
+	const outputLines = result.output.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trimEnd().split("\n").filter((line, index, all) => line.length > 0 || (index > 0 && index < all.length - 1));
+	const visibleOutputLines = outputLines.length > maxLines ? outputLines.slice(-maxLines) : outputLines;
+	const omittedLineCount = outputLines.length - visibleOutputLines.length;
+	if (omittedLineCount > 0) {
+		lines.push(`... (${pluralize(omittedLineCount, "earlier line")}, ctrl+o to expand)`);
+	}
+	lines.push(...visibleOutputLines.map((line) => shortenOutputLine(line)));
+	if (result.session_id !== undefined) lines.push(`Session ${result.session_id} still running`);
+	if (result.exit_code !== undefined && result.exit_code !== 0) lines.push(`Exit code: ${result.exit_code}`);
+	if (lines.length > 0) lines.push(`Took ${formatDuration(result.wall_time_seconds)}`);
+	return lines.join("\n");
 }
 
 const renderExecCommandCallWithOptionalContext: any = (
@@ -132,11 +168,8 @@ const renderExecCommandResultWithOptionalContext: any = (
 	theme: { fg(role: string, text: string): string },
 	context: ExecCommandRenderContextLike | undefined,
 	tracker: ExecCommandTracker,
+	options: ExecCommandToolOptions = {},
 ) => {
-	if (!_options.expanded) {
-		return createEmptyResultComponent();
-	}
-
 	const command = context && "args" in context && context.args && typeof (context as any).args.cmd === "string" ? (context as any).args.cmd : undefined;
 	if (tracker.getRenderInfo(context?.toolCallId, command ?? "").hidden) {
 		return createEmptyResultComponent();
@@ -145,6 +178,11 @@ const renderExecCommandResultWithOptionalContext: any = (
 	const details = isUnifiedExecResult(result.details) ? result.details : undefined;
 	const content = result.content.find((item) => item.type === "text");
 	const output = details?.output ?? (content?.type === "text" ? content.text : "");
+	if (!_options.expanded) {
+		if (!options.showOutputWhenCollapsed || !details) return createEmptyResultComponent();
+		const preview = formatCollapsedExecOutputPreview(details);
+		return preview ? new Text(theme.fg("dim", preview), 4, 0) : createEmptyResultComponent();
+	}
 	let text = theme.fg("dim", output || "(no output)");
 	if (details?.session_id !== undefined) {
 		text += `\n${theme.fg("accent", `Session ${details.session_id} still running`)}`;
@@ -155,7 +193,7 @@ const renderExecCommandResultWithOptionalContext: any = (
 	return renderTextWithImages(text, result.content, theme, { paddingX: 4 });
 };
 
-export function registerExecCommandTool(pi: ExtensionAPI, tracker: ExecCommandTracker, sessions: ExecSessionManager, options: { customRendering?: boolean | undefined; promptSnippet?: boolean | undefined } = {}): void {
+export function registerExecCommandTool(pi: ExtensionAPI, tracker: ExecCommandTracker, sessions: ExecSessionManager, options: ExecCommandToolOptions = {}): void {
 	pi.registerTool({
 		name: "exec_command",
 		label: "exec_command",
@@ -202,7 +240,7 @@ export function registerExecCommandTool(pi: ExtensionAPI, tracker: ExecCommandTr
 			renderOptions: { expanded: boolean; isPartial: boolean },
 			theme: { fg(role: string, text: string): string },
 			context?: ExecCommandRenderContextLike,
-		) => renderExecCommandResultWithOptionalContext(result, renderOptions, theme, context, tracker)) as any,
+		) => renderExecCommandResultWithOptionalContext(result, renderOptions, theme, context, tracker, options)) as any,
 		}),
 	});
 }

@@ -29,6 +29,8 @@ export function migrateCodexConversionConfigIfNeeded(value: unknown): { migrated
 		ui: {
 			statusLine: typeof value["statusLine"] === "boolean" ? value["statusLine"] : DEFAULT_CODEX_CONVERSION_CONFIG.ui["statusLine"],
 			toolRendering: DEFAULT_CODEX_CONVERSION_CONFIG.ui["toolRendering"],
+			showPatchDiffsCollapsed: DEFAULT_CODEX_CONVERSION_CONFIG.ui["showPatchDiffsCollapsed"],
+			showShellOutputCollapsed: DEFAULT_CODEX_CONVERSION_CONFIG.ui["showShellOutputCollapsed"],
 			backgroundShellWidget: typeof value["backgroundShellWidget"] === "boolean" ? value["backgroundShellWidget"] : DEFAULT_CODEX_CONVERSION_CONFIG.ui["backgroundShellWidget"],
 			backgroundShellToggleShortcut: stringValue(value["backgroundShellToggleShortcut"], DEFAULT_CODEX_CONVERSION_CONFIG.ui["backgroundShellToggleShortcut"]),
 			backgroundShellPrevShortcut: stringValue(value["backgroundShellPrevShortcut"], DEFAULT_CODEX_CONVERSION_CONFIG.ui["backgroundShellPrevShortcut"]),

@@ -67,8 +67,8 @@ export default function codexConversion(pi: ExtensionAPI) {
 	}
 
 	function registerCoreTools(config = state.config): void {
-		registerApplyPatchTool(pi, promptSnippetOptions(config));
-		registerExecCommandTool(pi, tracker, sessions, { ...customRenderingOptions(config), ...promptSnippetOptions(config) });
+		registerApplyPatchTool(pi, { ...promptSnippetOptions(config), showDiffWhenCollapsed: config.ui.showPatchDiffsCollapsed });
+		registerExecCommandTool(pi, tracker, sessions, { ...customRenderingOptions(config), ...promptSnippetOptions(config), showOutputWhenCollapsed: config.ui.showShellOutputCollapsed });
 		registerWriteStdinTool(pi, sessions, promptSnippetOptions(config));
 		registerViewImageTool(pi, { ...customRenderingOptions(config), ...promptSnippetOptions(config) });
 	}

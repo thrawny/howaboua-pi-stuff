@@ -28,6 +28,8 @@ test("old flat config migrates to grouped config and respects disabled provider 
 	assert.deepEqual(config.tools, { webRun: false, imageGeneration: false, applyPatchOnly: true });
 	assert.equal(config.ui.statusLine, false);
 	assert.equal(config.ui.toolRendering, true);
+	assert.equal(config.ui.showPatchDiffsCollapsed, false);
+	assert.equal(config.ui.showShellOutputCollapsed, false);
 	assert.equal(config.ui.backgroundShellWidget, false);
 	assert.equal(config.compaction.responsesCompaction, true);
 	assert.equal(config.openai.fast, true);
@@ -36,6 +38,14 @@ test("old flat config migrates to grouped config and respects disabled provider 
 	assert.equal(config.openai.webSearchModel, "gpt-5.4-mini");
 	assert.equal(config.openai.compactionModel, "gpt-5.5");
 	assert.equal(config.openai.compactionReasoning, "medium");
+});
+
+test("grouped config preserves collapsed patch diff rendering setting", () => {
+	const config = normalizeCodexConversionConfig({
+		ui: { showPatchDiffsCollapsed: true, showShellOutputCollapsed: true },
+	});
+	assert.equal(config.ui.showPatchDiffsCollapsed, true);
+	assert.equal(config.ui.showShellOutputCollapsed, true);
 });
 
 test("old flat config migrates adapter providers when old gate was enabled", () => {

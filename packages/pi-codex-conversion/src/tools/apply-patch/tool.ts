@@ -85,13 +85,19 @@ function describeFailedActions(error: ExecutePatchError, cwd: string): string[] 
 export type { ExecutePatchResult } from "../../patch/types.ts";
 export { clearApplyPatchRenderState };
 
-const renderApplyPatchCallWithOptionalContext: any = (
+interface ApplyPatchToolOptions {
+	promptSnippet?: boolean | undefined;
+	showDiffWhenCollapsed?: boolean | undefined;
+}
+
+const renderApplyPatchCallWithOptionalContext = (
 	args: { input?: unknown | undefined },
 	theme: { fg(role: string, text: string): string; bold(text: string): string },
 	context?: ApplyPatchRenderContextLike,
-) => new Text(renderApplyPatchCallFromState(args, theme, context), 0, 0);
+	options: ApplyPatchToolOptions = {},
+) => new Text(renderApplyPatchCallFromState(args, theme, options.showDiffWhenCollapsed ? { ...context, expanded: true } : context), 0, 0);
 
-export function registerApplyPatchTool(pi: ExtensionAPI, options: { promptSnippet?: boolean | undefined } = {}): void {
+export function registerApplyPatchTool(pi: ExtensionAPI, options: ApplyPatchToolOptions = {}): void {
 	pi.registerTool({
 		name: "apply_patch",
 		label: "apply_patch",
@@ -149,7 +155,7 @@ export function registerApplyPatchTool(pi: ExtensionAPI, options: { promptSnippe
 
 			return { content: [{ type: "text", text: summary }], details: { status: "success", result } satisfies ApplyPatchSuccessDetails };
 		},
-		renderCall: renderApplyPatchCallWithOptionalContext,
+		renderCall: ((args: { input?: unknown | undefined }, theme: { fg(role: string, text: string): string; bold(text: string): string }, context?: ApplyPatchRenderContextLike) => renderApplyPatchCallWithOptionalContext(args, theme, context, options)) as any,
 		renderResult(result, { isPartial }, theme) {
 			if (isPartial) return new Text(`${theme.fg("dim", "•")} ${theme.bold("Patching")}`, 0, 0);
 			if (!isApplyPatchToolDetails(result.details)) return new Container();
